@@ -1,73 +1,35 @@
-# React + TypeScript + Vite
+# VBA UserForm Builder
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+ブラウザ上で Excel VBA の UserForm を視覚的に作成し、`.frm`/`.frx`/`.xlsm`/`.bas` 形式でダウンロードできるツール。
 
-Currently, two official plugins are available:
+- **Live**: https://kst02w.github.io/vba-userform-builder/
+- **Stack**: Vite + React + TypeScript + Tailwind CSS v4 + Zustand + dnd-kit + Monaco Editor
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Features (planned)
 
-## React Compiler
+- ハイブリッド作成方式: AI（Claude API）で初期生成 → D&D で微調整
+- 完全クライアントサイド動作（GitHub Pages 配信）
+- VBA 限定インタプリタによるブラウザ内プレビュー実行
+- ワークシート⇔フィールドのマッピング機能
+- 4種の出力形式: `.frm`+`.frx` / `.xlsm`（テンプレ注入） / `.bas` / コピペテキスト
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Development
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev      # http://localhost:5180/vba-userform-builder/
+npm run build
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Status
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Phase 0 (skeleton). Subsequent phases:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+- P1: D&D ビルダー基盤
+- P2: Monaco Editor + イベントスタブ
+- P3: `.frm`/`.frx`/`.bas`/コピペ エクスポート
+- P4: Excel 読込 + ワークシートマッピング
+- P5: `.xlsm` テンプレ注入による完成ブック生成
+- P6: VBA 限定インタプリタ + プレビュー実行
+- P7: Claude API 統合（自然言語/画像/音声/Excel 解析）
+- P8: テンプレ集 + ポリッシュ
