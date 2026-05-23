@@ -1,81 +1,147 @@
-import { FormInput, Wand2, Play, Download } from 'lucide-react'
+import { useEffect, useRef } from 'react'
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import { Header } from './components/Header'
+import { Footer } from './components/Footer'
+import { ProjectTree } from './components/ProjectTree'
+import { Toolbox } from './components/Toolbox'
+import { Canvas } from './components/Canvas'
+import { PropertiesPanel } from './components/PropertiesPanel'
+import { useProjectStore, useTemporal } from './store/project'
+import { attachPersistence, loadPersistedProject } from './store/persistence'
+import type { ControlType } from './types/project'
 
 function App() {
+  const canvasRef = useRef<HTMLDivElement | null>(null)
+  const lastPointer = useRef({ x: 0, y: 0 })
+
+  const addControl = useProjectStore((s) => s.addControl)
+  const moveControl = useProjectStore((s) => s.moveControl)
+  const deleteControl = useProjectStore((s) => s.deleteControl)
+  const selectedFormId = useProjectStore((s) => s.project.selectedFormId)
+  const selectedControlId = useProjectStore((s) => s.project.selectedControlId)
+  const loadProject = useProjectStore((s) => s.loadProject)
+  const undo = useTemporal((s) => s.undo)
+  const redo = useTemporal((s) => s.redo)
+
+  // Hydrate from IndexedDB + attach persistence subscriber
+  useEffect(() => {
+    let mounted = true
+    loadPersistedProject().then((p) => {
+      if (mounted && p && p.forms && p.forms.length > 0) loadProject(p)
+    })
+    const detach = attachPersistence()
+    return () => {
+      mounted = false
+      detach()
+    }
+  }, [loadProject])
+
+  // Track pointer for toolbox-drop position
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      lastPointer.current = { x: e.clientX, y: e.clientY }
+    }
+    window.addEventListener('pointermove', onMove)
+    return () => window.removeEventListener('pointermove', onMove)
+  }, [])
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement
+      const isInput =
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+
+      const ctrl = e.ctrlKey || e.metaKey
+      if (ctrl && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        undo()
+      } else if (
+        ctrl &&
+        (e.key.toLowerCase() === 'y' ||
+          (e.key.toLowerCase() === 'z' && e.shiftKey))
+      ) {
+        e.preventDefault()
+        redo()
+      } else if (
+        !isInput &&
+        (e.key === 'Delete' || e.key === 'Backspace') &&
+        selectedFormId &&
+        selectedControlId
+      ) {
+        e.preventDefault()
+        deleteControl(selectedFormId, selectedControlId)
+      } else if (
+        !isInput &&
+        selectedFormId &&
+        selectedControlId &&
+        ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)
+      ) {
+        e.preventDefault()
+        const step = e.shiftKey ? 10 : 1
+        const dx =
+          e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0
+        const dy =
+          e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0
+        moveControl(selectedFormId, selectedControlId, dx, dy)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [undo, redo, deleteControl, moveControl, selectedFormId, selectedControlId])
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+  )
+
+  function onDragEnd(event: DragEndEvent) {
+    const { active, delta } = event
+    const data = active.data.current as
+      | {
+          source: string
+          type?: ControlType
+          controlId?: string
+          formId?: string
+        }
+      | undefined
+    if (!data) return
+
+    if (data.source === 'toolbox' && data.type && selectedFormId) {
+      const rect = canvasRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const x = lastPointer.current.x - rect.left
+      const y = lastPointer.current.y - rect.top
+      addControl(selectedFormId, data.type, Math.max(0, x), Math.max(0, y))
+    } else if (data.source === 'ctrl' && data.controlId && data.formId) {
+      moveControl(data.formId, data.controlId, delta.x, delta.y)
+    }
+  }
+
   return (
-    <div className="flex h-screen flex-col bg-slate-50 text-slate-900">
-      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-2 shadow-sm">
-        <div className="flex items-center gap-2">
-          <FormInput className="h-5 w-5 text-indigo-600" />
-          <h1 className="text-lg font-semibold">VBA UserForm Builder</h1>
-          <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
-            P0 / Skeleton
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm hover:bg-slate-50">
-            <Wand2 className="h-4 w-4" /> AI生成
-          </button>
-          <button className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm hover:bg-slate-50">
-            <Play className="h-4 w-4" /> プレビュー
-          </button>
-          <button className="flex items-center gap-1 rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500">
-            <Download className="h-4 w-4" /> エクスポート
-          </button>
-        </div>
-      </header>
-
-      <main className="flex flex-1 overflow-hidden">
-        <aside className="w-60 border-r border-slate-200 bg-white p-3 text-sm">
-          <div className="mb-4">
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              プロジェクト
-            </h2>
-            <div className="rounded border border-dashed border-slate-300 p-3 text-center text-xs text-slate-400">
-              （P1で実装）
-            </div>
-          </div>
-          <div>
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              ツールボックス
-            </h2>
-            <div className="rounded border border-dashed border-slate-300 p-3 text-center text-xs text-slate-400">
-              （P1で実装）
-            </div>
-          </div>
-        </aside>
-
-        <section className="flex flex-1 items-center justify-center bg-slate-100">
-          <div className="text-center">
-            <div className="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-indigo-100">
-              <FormInput className="h-8 w-8 text-indigo-600" />
-            </div>
-            <h2 className="text-2xl font-semibold text-slate-700">
-              VBA UserForm Builder
-            </h2>
-            <p className="mt-2 text-sm text-slate-500">
-              P0 デプロイ動作確認用の最小骨格です。
-            </p>
-            <p className="mt-1 text-xs text-slate-400">
-              次フェーズ (P1) で D&D ビルダーを実装します。
-            </p>
-          </div>
-        </section>
-
-        <aside className="w-72 border-l border-slate-200 bg-white p-3 text-sm">
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-            プロパティ
-          </h2>
-          <div className="rounded border border-dashed border-slate-300 p-3 text-center text-xs text-slate-400">
-            （P1で実装）
-          </div>
-        </aside>
-      </main>
-
-      <footer className="flex items-center justify-between border-t border-slate-200 bg-white px-4 py-1 text-xs text-slate-400">
-        <span>Phase 0: スケルトン</span>
-        <span>kst02w / vba-userform-builder</span>
-      </footer>
-    </div>
+    <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+      <div className="flex h-screen flex-col bg-slate-50 text-slate-900">
+        <Header />
+        <main className="flex flex-1 overflow-hidden">
+          <aside className="flex w-60 flex-col gap-4 overflow-auto border-r border-slate-200 bg-white p-3">
+            <ProjectTree />
+            <Toolbox />
+          </aside>
+          <Canvas ref={canvasRef} />
+          <aside className="w-72 overflow-auto border-l border-slate-200 bg-white">
+            <PropertiesPanel />
+          </aside>
+        </main>
+        <Footer />
+      </div>
+    </DndContext>
   )
 }
 
