@@ -1,27 +1,29 @@
 /**
- * Generate a .frm (text) and .frx (binary placeholder) for a UserForm.
+ * Generate a .frm (text) and .frx (binary) for a UserForm.
  *
- * The .frm format used here mirrors what VBE produces when you File > Export:
+ * The .frm format mirrors what VBE produces when you File > Export:
  *   VERSION 5.00
  *   Begin {GUID} UserForm1
- *      Caption         = "..."
+ *      Caption         =   "..."
  *      ClientWidth     =   <twips>
+ *      OleObjectBlob   =   "UserForm1.frx":0000
  *      ...
  *      Begin Forms.CommandButton CommandButton1
- *         Caption       = "..."
- *         Height        = <twips>
+ *         Caption       =   "..."
+ *         Height        =   <twips>
  *         ...
  *      End
  *   End
  *   Attribute VB_Name = "UserForm1"
  *   <code>
  *
- * NOTE: The .frx file VBE produces contains a binary OleObjectBlob describing
- * runtime form state. Generating a fully-valid .frx requires emitting the
- * MS-OFORMS persistence stream which is non-trivial. For maximum compatibility
- * we omit `OleObjectBlob =` from the .frm header — VBE will recreate the
- * binary on first save. We still emit a tiny placeholder .frx so users get
- * the expected file pair.
+ * .FRX FORMAT:
+ *   VBE requires OleObjectBlob in the .frm header pointing to a .frx companion
+ *   file. Without it VBE treats the .frm as a Standard Module and all controls
+ *   fail to load. The .frx is an OLE Compound Binary File (CFBF) wrapped in a
+ *   24-byte proprietary header. buildFrx() uses RealForm.frx (an empty UserForm
+ *   exported from a real VBE session) as a binary template, patching only the
+ *   form dimensions in the "f" persistence stream.
  *
  * ENCODING: VBE on Windows reads .frm files with the system ANSI codepage
  * (CP932/Shift-JIS on Japanese Windows). buildFrmBytes() encodes the output
@@ -151,6 +153,9 @@ export function buildFrm(form: UserForm): string {
   lines.push(indentLines(1, `ClientLeft      =   120`))
   lines.push(indentLines(1, `ClientTop       =   465`))
   lines.push(indentLines(1, `ClientWidth     =   ${pxToTwips(form.width)}`))
+  // OleObjectBlob is REQUIRED: without it VBE imports the file as a Standard
+  // Module instead of a UserForm, causing all Begin/End control blocks to fail.
+  lines.push(indentLines(1, `OleObjectBlob   =   "${form.name}.frx":0000`))
   lines.push(indentLines(1, `StartUpPosition =   1  'CenterOwner`))
   // NOTE: BackColor / ForeColor / Font for the form itself are stored in the
   // .frx binary (OleObjectBlob), NOT in the .frm text header. Writing BackColor
@@ -191,10 +196,86 @@ export function buildFrmBytes(form: UserForm): Uint8Array<ArrayBuffer> {
   return view
 }
 
+// ─── .frx binary generation ──────────────────────────────────────────────────
+// RealForm.frx: empty UserForm exported from real VBE (2584 bytes).
+// Structure: 24-byte "LB" proprietary header + 2560-byte CFBF document.
+// CFBF streams: "f" (FormControl, 38 bytes), "o" (empty), "CompObj" (110 bytes).
+// We patch bytes 2084–2091 (Width/Height in HiMetrics inside the "f" stream).
+const FRX_TEMPLATE_B64 =
+  'TEIIAAAKAAAAAAAAAAAAAMASAAAQDgAA0M8R4KGxGuEAAAAAAAAAAAAAAAAAAAAAPgADAP7/CQAG' +
+  'AAAAAAAAAAAAAAABAAAAAQAAAAAAAAAAEAAAAgAAAAEAAAD+////AAAAAAAAAAD/////////////' +
+  '////////////////////////////////////////////////////////////////////////////' +
+  '////////////////////////////////////////////////////////////////////////////' +
+  '////////////////////////////////////////////////////////////////////////////' +
+  '////////////////////////////////////////////////////////////////////////////' +
+  '////////////////////////////////////////////////////////////////////////////' +
+  '////////////////////////////////////////////////////////////////////////////' +
+  '////////////////////////////////////////////////////////////////////////////' +
+  '///////////////////////////////9/////v////7////+////////////////////////////' +
+  '////////////////////////////////////////////////////////////////////////////' +
+  '////////////////////////////////////////////////////////////////////////////' +
+  '////////////////////////////////////////////////////////////////////////////' +
+  '////////////////////////////////////////////////////////////////////////////' +
+  '////////////////////////////////////////////////////////////////////////////' +
+  '////////////////////////////////////////////////////////////////////////////' +
+  '////////////////////////////////////////////////////////////////////////////' +
+  '////////////////////////////////////////////////////////////////////////////' +
+  '/////////////////////////////1IAbwBvAHQAIABFAG4AdAByAHkAAAAAAAAAAAAAAAAAAAAA' +
+  'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWAAUA//////////8CAAAA8GkqxtwWzhGemACq' +
+  'AFdKTwAAAAAAAAAAAAAAAJBjd+9n69wBAwAAAMAAAAAAAAAAZgAAAAAAAAAAAAAAAAAAAAAAAAAA' +
+  'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAgD/////////////' +
+  '//8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJgAAAAAAAABvAAAAAAAA' +
+  'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' +
+  'BAACAQEAAAADAAAA/////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP7///8A' +
+  'AAAAAAAAAAEAQwBvAG0AcABPAGIAagAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' +
+  'AAAAAAAAAAAAAAAAAAASAAIA////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' +
+  'AAAAAAAAAAAAAQAAAG4AAAAAAAAA/v///wIAAAD+////////////////////////////////////' +
+  '////////////////////////////////////////////////////////////////////////////' +
+  '////////////////////////////////////////////////////////////////////////////' +
+  '////////////////////////////////////////////////////////////////////////////' +
+  '////////////////////////////////////////////////////////////////////////////' +
+  '////////////////////////////////////////////////////////////////////////////' +
+  '////////////////////////////////////////////////////////////////////////////' +
+  '////////////////////////////////////////////////////////////////////////////' +
+  '////////////////////////////////////////////////////////////////////////////' +
+  '//////////////////////////8ABBgAAAwACAB9AABrHwAAxhQAAAAAAAAAAAAAAAAAAAAAAAAA' +
+  'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQD+/wMKAAD/////8GkqxtwWzhGemACqAFdKTxkA' +
+  'AABNaWNyb3NvZnQgRm9ybXMgMi4wIEZvcm0AEAAAAEVtYmVkZGVkIE9iamVjdAANAAAARm9ybXMu' +
+  'Rm9ybS4xAPQ5snEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' +
+  'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' +
+  'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' +
+  'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' +
+  'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' +
+  'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' +
+  'AAAAAAAAAAAAAAAAAAAAAAAAAA=='
+
+/** Write UInt32 little-endian. */
+function writeUint32LE(buf: Uint8Array, offset: number, value: number): void {
+  buf[offset] = value & 0xff
+  buf[offset + 1] = (value >>> 8) & 0xff
+  buf[offset + 2] = (value >>> 16) & 0xff
+  buf[offset + 3] = (value >>> 24) & 0xff
+}
+
+/** px (96 DPI) → HiMetric (1/100 mm). */
+function pxToHimetric(px: number): number {
+  return Math.floor(Math.round(px * 15) * 2540 / 1440)
+}
+
 /**
- * Generate a placeholder .frx (8 zero bytes). VBE may regenerate the binary on
- * first save; for forms with no embedded pictures this is generally accepted.
+ * Generate the .frx binary companion for a UserForm.
+ * Uses RealForm.frx as a template, patching the form dimensions in the "f"
+ * persistence stream. Controls defined via Begin/End blocks in the .frm
+ * do not need SITE records in .frx — VBE reads them directly from the text.
  */
-export function buildFrx(): ArrayBuffer {
-  return new ArrayBuffer(8)
+export function buildFrx(form: UserForm): Uint8Array<ArrayBuffer> {
+  const raw = atob(FRX_TEMPLATE_B64.replace(/\s/g, ''))
+  const buf = new ArrayBuffer(raw.length)
+  const bytes = new Uint8Array(buf)
+  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i)
+  // Patch Width/Height in "f" stream (mini sector 0, file offset 2072).
+  // Property offsets within "f": Width=12, Height=16 → file offsets 2084, 2088.
+  writeUint32LE(bytes, 2084, pxToHimetric(form.width))
+  writeUint32LE(bytes, 2088, pxToHimetric(form.height))
+  return bytes as Uint8Array<ArrayBuffer>
 }

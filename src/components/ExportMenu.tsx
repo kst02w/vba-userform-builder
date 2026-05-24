@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import JSZip from 'jszip'
 import { useProjectStore, selectActiveForm } from '../store/project'
-import { buildFrmBytes } from '../lib/export-frm'
+import { buildFrmBytes, buildFrx } from '../lib/export-frm'
 import { buildBas, basFileName } from '../lib/export-bas'
 import { buildClipboardForProject } from '../lib/export-text'
 import { buildInstallerVbs, buildInstallerReadme } from '../lib/export-xlsm-installer'
@@ -46,10 +46,8 @@ export function ExportMenu() {
   const exportFrmZip = async () => {
     const zip = new JSZip()
     for (const f of project.forms) {
-      zip.file(`${f.name}.frm`, buildFrmBytes(f))   // CP932-encoded bytes
-      // .frx は含めない: 8バイトのダミー .frx を同フォルダに置くと
-      // VBE が不正な OLE ストリームとして読み込み COM エラーを起こす。
-      // .frx がなければ VBE が最初の保存時に正しく生成する。
+      zip.file(`${f.name}.frm`, buildFrmBytes(f))  // CP932-encoded text
+      zip.file(`${f.name}.frx`, buildFrx(f))       // valid OLE CFBF binary
     }
     for (const m of project.modules) {
       zip.file(basFileName(m), buildBas(m))
@@ -62,8 +60,8 @@ export function ExportMenu() {
   const exportInstallerZip = async () => {
     const zip = new JSZip()
     for (const f of project.forms) {
-      zip.file(`${f.name}.frm`, buildFrmBytes(f))   // CP932-encoded bytes
-      // .frx は含めない（上記 exportFrmZip と同じ理由）
+      zip.file(`${f.name}.frm`, buildFrmBytes(f))  // CP932-encoded text
+      zip.file(`${f.name}.frx`, buildFrx(f))       // valid OLE CFBF binary
     }
     for (const m of project.modules) {
       zip.file(basFileName(m), buildBas(m))
@@ -77,9 +75,9 @@ export function ExportMenu() {
 
   const exportActiveFrm = () => {
     if (!form) return
-    // buildFrmBytes returns CP932-encoded Uint8Array so VBE reads Japanese correctly
-    // .frx は出力しない — 同フォルダに置くと VBE が不正ストリームを読んで失敗する
+    // Download .frm (CP932) + .frx (OLE CFBF) as separate files
     downloadBlob(new Blob([buildFrmBytes(form)], { type: 'application/octet-stream' }), `${form.name}.frm`)
+    downloadBlob(new Blob([buildFrx(form)],     { type: 'application/octet-stream' }), `${form.name}.frx`)
     setOpen(false)
   }
 
@@ -159,7 +157,7 @@ export function ExportMenu() {
             onClick={copyAllToClipboard}
           />
           <p className="border-t border-slate-100 px-3 py-2 text-[10px] text-slate-500">
-            ※ .frx は最小プレースホルダ。フォーム保存時にVBEが再生成します。<br />
+            ※ .frm と .frx を同じフォルダに置いてVBEでインポートしてください。<br />
             ※ install.vbs が Smart App Control でブロックされた場合は「プロジェクト全体 .zip」+ VBE手動インポートをお試しください。
           </p>
         </div>
