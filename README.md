@@ -3,6 +3,7 @@
 ブラウザ上で Excel VBA の UserForm を視覚的に作成し、`.frm`/`.frx`/`.xlsm`/`.bas` 形式でダウンロードできるツール。
 
 - **Live**: https://kst02w.github.io/vba-userform-builder/
+- **Manual**: [MANUAL.md](MANUAL.md) — 3分クイックスタート、機能ガイド、典型シナリオ、FAQ、トラブルシューティング
 - **Stack**: Vite + React + TypeScript + Tailwind CSS v4 + Zustand + dnd-kit + Monaco Editor
 
 ## Features

@@ -51,6 +51,18 @@ function HelpDialog({ onClose }: { onClose: () => void }) {
           </button>
         </header>
         <div className="flex-1 overflow-auto p-4 text-sm">
+          <p className="mb-3 rounded bg-indigo-50 px-2 py-1.5 text-[11px] text-indigo-700">
+            詳しい使い方は{' '}
+            <a
+              href="https://github.com/kst02w/vba-userform-builder/blob/main/MANUAL.md"
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold underline hover:text-indigo-900"
+            >
+              ユーザーマニュアル
+            </a>{' '}
+            をどうぞ（3分クイックスタート / 機能ガイド / FAQ / トラブルシューティング）
+          </p>
           <Group title="ビュー">
             <Row k="F7" v="コードビューへ切替" />
             <Row k="Shift+F7" v="デザイナへ切替" />
