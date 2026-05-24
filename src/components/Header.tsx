@@ -1,6 +1,10 @@
+import { useState } from 'react'
 import { FormInput, Wand2, Play, Undo2, Redo2, LayoutDashboard, FileCode2 } from 'lucide-react'
-import { useProjectStore, useTemporal } from '../store/project'
+import { useProjectStore, useTemporal, selectActiveForm } from '../store/project'
 import { ExportMenu } from './ExportMenu'
+import { PreviewModal } from './PreviewModal'
+import { AIGeneratorDialog } from './AIGeneratorDialog'
+import { TemplatePickerDialog } from './TemplatePickerDialog'
 import { cn } from '../lib/utils'
 
 export function Header() {
@@ -13,14 +17,19 @@ export function Header() {
 
   const view = useProjectStore((s) => s.project.view ?? 'designer')
   const setView = useProjectStore((s) => s.setView)
+  const form = useProjectStore(selectActiveForm)
+
+  const [showPreview, setShowPreview] = useState(false)
+  const [showAI, setShowAI] = useState(false)
+  const [showTemplates, setShowTemplates] = useState(false)
 
   return (
     <header className="flex items-center justify-between border-b border-slate-200 bg-white px-3 py-2 shadow-sm">
       <div className="flex items-center gap-2">
         <FormInput className="h-5 w-5 text-indigo-600" />
         <h1 className="text-base font-semibold">VBA UserForm Builder</h1>
-        <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
-          P3 / Builder + Code + Export
+        <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
+          v1.0 / All features
         </span>
       </div>
 
@@ -71,21 +80,32 @@ export function Header() {
           </button>
         </div>
         <button
-          className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-400 hover:bg-slate-50"
-          title="P7で実装"
-          disabled
+          onClick={() => setShowTemplates(true)}
+          className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+          title="テンプレートから新規"
+        >
+          <FormInput className="h-4 w-4" /> テンプレ
+        </button>
+        <button
+          onClick={() => setShowAI(true)}
+          className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+          title="Claude で自然言語からフォーム生成"
         >
           <Wand2 className="h-4 w-4" /> AI生成
         </button>
         <button
-          className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-400 hover:bg-slate-50"
-          title="P6で実装"
-          disabled
+          onClick={() => setShowPreview(true)}
+          disabled={!form}
+          className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+          title="VBAインタプリタでプレビュー実行"
         >
           <Play className="h-4 w-4" /> プレビュー
         </button>
         <ExportMenu />
       </div>
+      {showPreview && <PreviewModal onClose={() => setShowPreview(false)} />}
+      {showAI && <AIGeneratorDialog onClose={() => setShowAI(false)} />}
+      {showTemplates && <TemplatePickerDialog onClose={() => setShowTemplates(false)} />}
     </header>
   )
 }

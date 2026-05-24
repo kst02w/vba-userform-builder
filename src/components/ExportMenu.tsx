@@ -7,12 +7,14 @@ import {
   FileCode2,
   FormInput as FormIcon,
   Check,
+  PackageOpen,
 } from 'lucide-react'
 import JSZip from 'jszip'
 import { useProjectStore, selectActiveForm } from '../store/project'
 import { buildFrm, buildFrx } from '../lib/export-frm'
 import { buildBas, basFileName } from '../lib/export-bas'
 import { buildClipboardForProject } from '../lib/export-text'
+import { buildInstallerVbs, buildInstallerReadme } from '../lib/export-xlsm-installer'
 import { cn } from '../lib/utils'
 
 function downloadBlob(blob: Blob, name: string): void {
@@ -52,6 +54,22 @@ export function ExportMenu() {
     }
     const blob = await zip.generateAsync({ type: 'blob' })
     downloadBlob(blob, `${project.name || 'VbaProject'}.zip`)
+    setOpen(false)
+  }
+
+  const exportInstallerZip = async () => {
+    const zip = new JSZip()
+    for (const f of project.forms) {
+      zip.file(`${f.name}.frm`, buildFrm(f))
+      zip.file(`${f.name}.frx`, buildFrx())
+    }
+    for (const m of project.modules) {
+      zip.file(basFileName(m), buildBas(m))
+    }
+    zip.file('install.vbs', buildInstallerVbs(project))
+    zip.file('README.txt', buildInstallerReadme(project))
+    const blob = await zip.generateAsync({ type: 'blob' })
+    downloadBlob(blob, `${project.name || 'VbaProject'}-installer.zip`)
     setOpen(false)
   }
 
@@ -106,9 +124,15 @@ export function ExportMenu() {
       {open && (
         <div className="absolute right-0 z-30 mt-1 w-72 rounded-md border border-slate-200 bg-white py-1 text-sm shadow-lg">
           <MenuItem
+            icon={<PackageOpen className="h-4 w-4 text-emerald-600" />}
+            label="完成 .xlsm を生成 (Windows + Excel)"
+            hint="install.vbs 同梱の .zip。ダブルクリックで .xlsm 出力"
+            onClick={exportInstallerZip}
+          />
+          <MenuItem
             icon={<FileArchive className="h-4 w-4" />}
             label="プロジェクト全体 (.zip)"
-            hint=".frm / .frx / .bas を一括"
+            hint=".frm / .frx / .bas を一括（VBE 手動インポート用）"
             onClick={exportFrmZip}
           />
           <MenuItem
