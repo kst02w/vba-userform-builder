@@ -73,6 +73,45 @@ export type ControlBase = {
   [key: string]: unknown
 }
 
+/** Cached worksheet data uploaded by the user (browser-local). */
+export type SheetData = {
+  name: string
+  /** Detected header row values (row 1 by default). */
+  headers: string[]
+  /** Preview rows (first N) — used for UI; codegen uses headers only. */
+  previewRows: (string | number | boolean | null)[][]
+  /** Total row count (excluding header). */
+  rowCount: number
+}
+
+export type WorkbookData = {
+  fileName: string
+  uploadedAt: string
+  sheets: SheetData[]
+}
+
+/** Cell reference like { sheet: "Sheet1", column: "A" } or { sheet, cell: "B2" } */
+export type CellRef = { sheet: string; cell: string }
+export type ColumnRef = { sheet: string; column: string }
+
+export type ControlMapping = {
+  /** ComboBox/ListBox: column of items to load on Initialize */
+  source?: ColumnRef
+  /** TextBox/CheckBox/ComboBox: cell to load into the control on Initialize */
+  initFrom?: CellRef
+  /** TextBox/CheckBox/ComboBox: column to write to on Submit (row = next empty row in targetSheet) */
+  writeToColumn?: ColumnRef
+}
+
+export type FormMapping = {
+  /** Control id → mapping settings. */
+  controls: Record<string, ControlMapping>
+  /** Name of the CommandButton that triggers Submit. */
+  submitButtonName?: string
+  /** Sheet where new rows are appended on Submit. */
+  targetSheet?: string
+}
+
 export type UserForm = {
   id: string
   /** VBA module name, e.g., "UserForm1" */
@@ -84,6 +123,8 @@ export type UserForm = {
   controls: ControlBase[]
   /** VBA code-behind for this form */
   code: string
+  /** Worksheet integration mapping (optional) */
+  mapping?: FormMapping
 }
 
 export type CodeModule = {
@@ -102,6 +143,8 @@ export type Project = {
   name: string
   forms: UserForm[]
   modules: CodeModule[]
+  /** Workbook shared across the project (only one slot for now). */
+  workbook?: WorkbookData
   /** UI state (not exported with project but kept for session continuity) */
   selectedFormId?: string
   selectedControlId?: string

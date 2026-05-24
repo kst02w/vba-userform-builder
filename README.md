@@ -23,12 +23,12 @@ npm run build
 
 ## Status
 
-P3 完了。P2 Monaco エディタ（VBA 構文ハイライト・コントロール名/プロパティ補完・イベントスタブ生成）と P3 エクスポート（.frm + .frx / .bas / .zip / コピペテキスト）まで実装済み。
+P4 完了。Excel ファイルをブラウザでローカル読込し、コントロールをシート/列にマッピング→ `UserForm_Initialize` と Submit ボタンの `_Click` を自動生成。
 
 - P1: D&D ビルダー基盤 ✅
 - P2: Monaco Editor + イベントスタブ ✅
 - P3: `.frm`/`.frx`/`.bas`/コピペ エクスポート ✅
-- P4: Excel 読込 + ワークシートマッピング
+- P4: Excel 読込 + ワークシートマッピング ✅
 - P5: `.xlsm` テンプレ注入による完成ブック生成
 - P6: VBA 限定インタプリタ + プレビュー実行
 - P7: Claude API 統合（自然言語/画像/音声/Excel 解析）

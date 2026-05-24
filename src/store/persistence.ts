@@ -9,10 +9,11 @@ export async function loadPersistedProject(): Promise<Project | undefined> {
   try {
     const raw = await idbGet<Project>(STORAGE_KEY)
     if (!raw) return undefined
-    // Migration: ensure every form has a code field
+    // Migration: ensure every form has a code field and mapping container
     raw.forms = (raw.forms ?? []).map((f) => ({
       ...f,
       code: typeof f.code === 'string' ? f.code : 'Option Explicit\r\n\r\n',
+      mapping: f.mapping ?? undefined,
     }))
     if (!raw.view) raw.view = 'designer'
     if (!raw.editorTarget && raw.selectedFormId) {

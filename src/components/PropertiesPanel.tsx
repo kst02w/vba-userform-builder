@@ -7,6 +7,7 @@ import {
 } from '../store/project'
 import type { ControlBase, UserForm } from '../types/project'
 import { cn } from '../lib/utils'
+import { MappingFields } from './MappingFields'
 
 function Field({
   label,
@@ -321,6 +322,10 @@ function ControlProperties({
             onChange={(v) => u({ tabStop: v })}
           />
         </Field>
+      </Section>
+
+      <Section title="データ連携" defaultOpen={true}>
+        <MappingFields form={form} control={control} />
       </Section>
 
       <Section title="その他" defaultOpen={false}>

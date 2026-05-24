@@ -6,10 +6,12 @@ import type { TemporalState } from 'zundo'
 import type {
   CodeModule,
   ControlBase,
+  ControlMapping,
   ControlType,
   EditorTarget,
   Project,
   UserForm,
+  WorkbookData,
 } from '../types/project'
 import { CONTROL_META } from '../lib/controls'
 import { clamp, uid } from '../lib/utils'
@@ -62,6 +64,16 @@ export type ProjectActions = {
   // view
   setView: (view: 'designer' | 'code') => void
   setEditorTarget: (target: EditorTarget | undefined) => void
+
+  // workbook & mapping (P4)
+  setWorkbook: (wb: WorkbookData | undefined) => void
+  setControlMapping: (
+    formId: string,
+    controlId: string,
+    mapping: ControlMapping | undefined,
+  ) => void
+  setSubmitButton: (formId: string, controlName: string | undefined) => void
+  setTargetSheet: (formId: string, sheet: string | undefined) => void
 }
 
 export type StoreSlice = ProjectState & ProjectActions
@@ -324,6 +336,36 @@ export const useProjectStore = create<StoreSlice>()(
       setEditorTarget: (target) =>
         set((state) => {
           state.project.editorTarget = target
+        }),
+
+      setWorkbook: (wb) =>
+        set((state) => {
+          state.project.workbook = wb
+        }),
+
+      setControlMapping: (formId, controlId, mapping) =>
+        set((state) => {
+          const f = state.project.forms.find((x) => x.id === formId)
+          if (!f) return
+          if (!f.mapping) f.mapping = { controls: {} }
+          if (mapping) f.mapping.controls[controlId] = mapping
+          else delete f.mapping.controls[controlId]
+        }),
+
+      setSubmitButton: (formId, controlName) =>
+        set((state) => {
+          const f = state.project.forms.find((x) => x.id === formId)
+          if (!f) return
+          if (!f.mapping) f.mapping = { controls: {} }
+          f.mapping.submitButtonName = controlName
+        }),
+
+      setTargetSheet: (formId, sheet) =>
+        set((state) => {
+          const f = state.project.forms.find((x) => x.id === formId)
+          if (!f) return
+          if (!f.mapping) f.mapping = { controls: {} }
+          f.mapping.targetSheet = sheet
         }),
     })),
     {

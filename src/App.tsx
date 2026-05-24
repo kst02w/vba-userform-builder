@@ -13,6 +13,7 @@ import { Toolbox } from './components/Toolbox'
 import { Canvas } from './components/Canvas'
 import { PropertiesPanel } from './components/PropertiesPanel'
 import { CodeEditor } from './components/CodeEditor'
+import { WorkbookSection } from './components/WorkbookSection'
 import { useProjectStore, useTemporal } from './store/project'
 import { attachPersistence, loadPersistedProject } from './store/persistence'
 import type { ControlType } from './types/project'
@@ -148,6 +149,7 @@ function App() {
               <aside className="flex w-60 flex-col gap-4 overflow-auto border-r border-slate-200 bg-white p-3">
                 <ProjectTree />
                 <Toolbox />
+                <WorkbookSection />
               </aside>
               <Canvas ref={canvasRef} />
               <aside className="w-72 overflow-auto border-l border-slate-200 bg-white">
