@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import JSZip from 'jszip'
 import { useProjectStore, selectActiveForm } from '../store/project'
-import { buildFrm, buildFrx } from '../lib/export-frm'
+import { buildFrmBytes, buildFrx } from '../lib/export-frm'
 import { buildBas, basFileName } from '../lib/export-bas'
 import { buildClipboardForProject } from '../lib/export-text'
 import { buildInstallerVbs, buildInstallerReadme } from '../lib/export-xlsm-installer'
@@ -46,7 +46,7 @@ export function ExportMenu() {
   const exportFrmZip = async () => {
     const zip = new JSZip()
     for (const f of project.forms) {
-      zip.file(`${f.name}.frm`, buildFrm(f))
+      zip.file(`${f.name}.frm`, buildFrmBytes(f))   // CP932-encoded bytes
       zip.file(`${f.name}.frx`, buildFrx())
     }
     for (const m of project.modules) {
@@ -60,7 +60,7 @@ export function ExportMenu() {
   const exportInstallerZip = async () => {
     const zip = new JSZip()
     for (const f of project.forms) {
-      zip.file(`${f.name}.frm`, buildFrm(f))
+      zip.file(`${f.name}.frm`, buildFrmBytes(f))   // CP932-encoded bytes
       zip.file(`${f.name}.frx`, buildFrx())
     }
     for (const m of project.modules) {
@@ -75,7 +75,8 @@ export function ExportMenu() {
 
   const exportActiveFrm = () => {
     if (!form) return
-    downloadBlob(new Blob([buildFrm(form)], { type: 'text/plain' }), `${form.name}.frm`)
+    // buildFrmBytes returns CP932-encoded Uint8Array so VBE reads Japanese correctly
+    downloadBlob(new Blob([buildFrmBytes(form)], { type: 'application/octet-stream' }), `${form.name}.frm`)
     downloadBlob(new Blob([buildFrx()], { type: 'application/octet-stream' }), `${form.name}.frx`)
     setOpen(false)
   }

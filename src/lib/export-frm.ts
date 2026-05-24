@@ -22,7 +22,12 @@
  * we omit `OleObjectBlob =` from the .frm header — VBE will recreate the
  * binary on first save. We still emit a tiny placeholder .frx so users get
  * the expected file pair.
+ *
+ * ENCODING: VBE on Windows reads .frm files with the system ANSI codepage
+ * (CP932/Shift-JIS on Japanese Windows). buildFrmBytes() encodes the output
+ * to CP932 so that Japanese captions import correctly.
  */
+import Encoding from 'encoding-japanese'
 import type { ControlBase, ControlType, UserForm } from '../types/project'
 import {
   escapeVbaString,
@@ -86,18 +91,26 @@ function controlBody(c: ControlBase, depth: number): string {
   if (c.borderColor) push('BorderColor', hexToOleColor(c.borderColor))
   if (c.borderStyle === 'single') push('BorderStyle', '1  \'fmBorderStyleSingle')
 
-  // Font block (FontProperties_M not emitted; users edit fonts in VBE)
+  // Font block — BeginProperty syntax: NO '=' on the Begin line.
+  // Sub-properties are at depth+1 relative to the current block.
+  // We push raw strings here; the final lines.map(l => indentLines(depth, l))
+  // at the end of this function adds the correct base indentation.
+  // Sub-property lines use indentLines(1, ...) so they end up at depth+1.
   if (c.fontName || c.fontSize) {
-    push(
-      'BeginProperty Font {0BE35203-8F91-11CE-9DE3-00AA004BB851}',
-      ''
-    )
-    lines.push(indentLines(depth + 1, `Name            =   ${escapeVbaString(c.fontName ?? 'MS UI Gothic')}`))
-    if (c.fontSize) lines.push(indentLines(depth + 1, `Size            =   ${c.fontSize}`))
-    if (c.fontBold) lines.push(indentLines(depth + 1, `Weight          =   700`))
-    if (c.fontItalic) lines.push(indentLines(depth + 1, `Italic          =   -1  'True`))
-    if (c.fontUnderline) lines.push(indentLines(depth + 1, `Underline       =   -1  'True`))
-    lines.push(indentLines(depth, 'EndProperty'))
+    const fname = c.fontName ?? 'MS UI Gothic'
+    const fsize = c.fontSize ?? 9
+    // Japanese fonts need charset 128 (Shift-JIS); Latin fonts use 0 (ANSI)
+    const charset = /gothic|mincho|meiryo|yu|ms p/i.test(fname) ? 128 : 0
+    const weight = c.fontBold ? 700 : 400
+    lines.push(`BeginProperty Font {0BE35203-8F91-11CE-9DE3-00AA004BB851}`)
+    lines.push(indentLines(1, `Name            =   ${escapeVbaString(fname)}`))
+    lines.push(indentLines(1, `Size            =   ${fsize}`))
+    lines.push(indentLines(1, `Charset         =   ${charset}`))
+    lines.push(indentLines(1, `Weight          =   ${weight}`))
+    lines.push(indentLines(1, `Underline       =   ${c.fontUnderline ? "-1  'True" : "0   'False"}`))
+    lines.push(indentLines(1, `Italic          =   ${c.fontItalic ? "-1  'True" : "0   'False"}`))
+    lines.push(indentLines(1, `Strikethrough   =   0   'False`))
+    lines.push(`EndProperty`)
   }
 
   if (c.multiLine && c.type === 'TextBox')
@@ -158,6 +171,21 @@ export function buildFrm(form: UserForm): string {
   lines.push(code.endsWith('\r\n') ? code.slice(0, -2) : code)
 
   return lines.join('\r\n') + '\r\n'
+}
+
+/**
+ * Encode a .frm string as CP932 (Shift-JIS) bytes.
+ * VBE on Japanese Windows reads .frm files in the system ANSI codepage (CP932).
+ * Using this instead of a raw UTF-8 Blob ensures Japanese captions import correctly.
+ */
+export function buildFrmBytes(form: UserForm): Uint8Array<ArrayBuffer> {
+  const text = buildFrm(form)
+  const codes = Encoding.stringToCode(text)
+  const sjis = Encoding.convert(codes, { to: 'SJIS', type: 'array' }) as number[]
+  const buf = new ArrayBuffer(sjis.length)
+  const view = new Uint8Array(buf)
+  for (let i = 0; i < sjis.length; i++) view[i] = sjis[i]
+  return view
 }
 
 /**
