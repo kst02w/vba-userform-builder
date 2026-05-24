@@ -124,16 +124,16 @@ export function ExportMenu() {
       {open && (
         <div className="absolute right-0 z-30 mt-1 w-72 rounded-md border border-slate-200 bg-white py-1 text-sm shadow-lg">
           <MenuItem
-            icon={<PackageOpen className="h-4 w-4 text-emerald-600" />}
-            label="完成 .xlsm を生成 (Windows + Excel)"
-            hint="install.vbs 同梱の .zip。ダブルクリックで .xlsm 出力"
-            onClick={exportInstallerZip}
+            icon={<FileArchive className="h-4 w-4 text-emerald-600" />}
+            label="プロジェクト全体 (.zip) — 推奨"
+            hint=".frm / .frx / .bas を一括。VBEで手動インポート（最も確実）"
+            onClick={exportFrmZip}
           />
           <MenuItem
-            icon={<FileArchive className="h-4 w-4" />}
-            label="プロジェクト全体 (.zip)"
-            hint=".frm / .frx / .bas を一括（VBE 手動インポート用）"
-            onClick={exportFrmZip}
+            icon={<PackageOpen className="h-4 w-4" />}
+            label="完成 .xlsm を生成 (Windows + Excel)"
+            hint="install.vbs 同梱の .zip。Win11 Smart App Control にブロックされる場合あり"
+            onClick={exportInstallerZip}
           />
           <MenuItem
             icon={<FormIcon className="h-4 w-4" />}
@@ -156,7 +156,8 @@ export function ExportMenu() {
             onClick={copyAllToClipboard}
           />
           <p className="border-t border-slate-100 px-3 py-2 text-[10px] text-slate-500">
-            ※ .frx は最小プレースホルダ。フォーム保存時にVBEが再生成します。
+            ※ .frx は最小プレースホルダ。フォーム保存時にVBEが再生成します。<br />
+            ※ install.vbs が Smart App Control でブロックされた場合は「プロジェクト全体 .zip」+ VBE手動インポートをお試しください。
           </p>
         </div>
       )}
