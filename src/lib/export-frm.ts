@@ -152,9 +152,10 @@ export function buildFrm(form: UserForm): string {
   lines.push(indentLines(1, `ClientTop       =   465`))
   lines.push(indentLines(1, `ClientWidth     =   ${pxToTwips(form.width)}`))
   lines.push(indentLines(1, `StartUpPosition =   1  'CenterOwner`))
-  if (form.backColor && form.backColor !== 'transparent') {
-    lines.push(indentLines(1, `BackColor       =   ${hexToOleColor(form.backColor)}`))
-  }
+  // NOTE: BackColor / ForeColor / Font for the form itself are stored in the
+  // .frx binary (OleObjectBlob), NOT in the .frm text header. Writing BackColor
+  // here causes VBE to log "プロパティ名 BackColor が不正です" and skip loading
+  // all controls. Background color can be changed in VBE's Properties window.
 
   for (const c of form.controls) {
     lines.push(controlBlock(c, 1))

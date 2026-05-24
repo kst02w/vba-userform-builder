@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import JSZip from 'jszip'
 import { useProjectStore, selectActiveForm } from '../store/project'
-import { buildFrmBytes, buildFrx } from '../lib/export-frm'
+import { buildFrmBytes } from '../lib/export-frm'
 import { buildBas, basFileName } from '../lib/export-bas'
 import { buildClipboardForProject } from '../lib/export-text'
 import { buildInstallerVbs, buildInstallerReadme } from '../lib/export-xlsm-installer'
@@ -47,7 +47,9 @@ export function ExportMenu() {
     const zip = new JSZip()
     for (const f of project.forms) {
       zip.file(`${f.name}.frm`, buildFrmBytes(f))   // CP932-encoded bytes
-      zip.file(`${f.name}.frx`, buildFrx())
+      // .frx は含めない: 8バイトのダミー .frx を同フォルダに置くと
+      // VBE が不正な OLE ストリームとして読み込み COM エラーを起こす。
+      // .frx がなければ VBE が最初の保存時に正しく生成する。
     }
     for (const m of project.modules) {
       zip.file(basFileName(m), buildBas(m))
@@ -61,7 +63,7 @@ export function ExportMenu() {
     const zip = new JSZip()
     for (const f of project.forms) {
       zip.file(`${f.name}.frm`, buildFrmBytes(f))   // CP932-encoded bytes
-      zip.file(`${f.name}.frx`, buildFrx())
+      // .frx は含めない（上記 exportFrmZip と同じ理由）
     }
     for (const m of project.modules) {
       zip.file(basFileName(m), buildBas(m))
@@ -76,8 +78,8 @@ export function ExportMenu() {
   const exportActiveFrm = () => {
     if (!form) return
     // buildFrmBytes returns CP932-encoded Uint8Array so VBE reads Japanese correctly
+    // .frx は出力しない — 同フォルダに置くと VBE が不正ストリームを読んで失敗する
     downloadBlob(new Blob([buildFrmBytes(form)], { type: 'application/octet-stream' }), `${form.name}.frm`)
-    downloadBlob(new Blob([buildFrx()], { type: 'application/octet-stream' }), `${form.name}.frx`)
     setOpen(false)
   }
 
