@@ -67,8 +67,10 @@ function controlBody(c: ControlBase, depth: number): string {
   if (c.text !== undefined && (c.type === 'TextBox' || c.type === 'ComboBox'))
     push('Text', escapeVbaString(String(c.text)))
   if (c.value !== undefined && hasValue(c.type)) {
+    // VBE stores CheckBox/OptionButton/ToggleButton Value as an integer, NOT a quoted string.
+    // True = -1, False = 0  (VBA Boolean convention)
     if (typeof c.value === 'boolean') {
-      push('Value', c.value ? '"1"' : '"0"')
+      push('Value', vbaBool(c.value))
     } else {
       push('Value', escapeVbaString(String(c.value)))
     }
