@@ -82,6 +82,8 @@ export type UserForm = {
   height: number
   backColor: string
   controls: ControlBase[]
+  /** VBA code-behind for this form */
+  code: string
 }
 
 export type CodeModule = {
@@ -91,6 +93,10 @@ export type CodeModule = {
   code: string
 }
 
+export type EditorTarget =
+  | { kind: 'form'; formId: string }
+  | { kind: 'module'; moduleId: string }
+
 export type Project = {
   id: string
   name: string
@@ -99,4 +105,8 @@ export type Project = {
   /** UI state (not exported with project but kept for session continuity) */
   selectedFormId?: string
   selectedControlId?: string
+  /** Designer vs Code view */
+  view?: 'designer' | 'code'
+  /** Currently focused code target */
+  editorTarget?: EditorTarget
 }

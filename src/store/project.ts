@@ -3,7 +3,14 @@ import { temporal } from 'zundo'
 import { immer } from 'zustand/middleware/immer'
 import { useStore } from 'zustand'
 import type { TemporalState } from 'zundo'
-import type { ControlBase, ControlType, Project, UserForm } from '../types/project'
+import type {
+  CodeModule,
+  ControlBase,
+  ControlType,
+  EditorTarget,
+  Project,
+  UserForm,
+} from '../types/project'
 import { CONTROL_META } from '../lib/controls'
 import { clamp, uid } from '../lib/utils'
 
@@ -43,9 +50,23 @@ export type ProjectActions = {
     controlId: string,
     rect: { left: number; top: number; width: number; height: number },
   ) => void
+
+  // code-behind & modules
+  setFormCode: (formId: string, code: string) => void
+  insertFormCode: (formId: string, snippet: string) => void
+  addModule: (kind?: 'standard' | 'class', name?: string) => string
+  deleteModule: (id: string) => void
+  renameModule: (id: string, name: string) => void
+  setModuleCode: (id: string, code: string) => void
+
+  // view
+  setView: (view: 'designer' | 'code') => void
+  setEditorTarget: (target: EditorTarget | undefined) => void
 }
 
 export type StoreSlice = ProjectState & ProjectActions
+
+const DEFAULT_FORM_CODE = 'Option Explicit\r\n\r\n'
 
 const DEFAULT_FORM: Omit<UserForm, 'id'> = {
   name: 'UserForm1',
@@ -54,6 +75,7 @@ const DEFAULT_FORM: Omit<UserForm, 'id'> = {
   height: 240,
   backColor: '#F0F0F0',
   controls: [],
+  code: DEFAULT_FORM_CODE,
 }
 
 export const makeInitialProject = (): Project => {
@@ -65,6 +87,8 @@ export const makeInitialProject = (): Project => {
     modules: [],
     selectedFormId: formId,
     selectedControlId: undefined,
+    view: 'designer',
+    editorTarget: { kind: 'form', formId },
   }
 }
 
@@ -87,6 +111,16 @@ const nextFormName = (project: Project): string => {
   return `UserForm${max + 1}`
 }
 
+const nextModuleName = (project: Project, prefix: string): string => {
+  const re = new RegExp(`^${prefix}(\\d+)$`)
+  let max = 0
+  for (const m of project.modules) {
+    const mm = m.name.match(re)
+    if (mm) max = Math.max(max, parseInt(mm[1], 10))
+  }
+  return `${prefix}${max + 1}`
+}
+
 export const useProjectStore = create<StoreSlice>()(
   temporal(
     immer((set) => ({
@@ -106,9 +140,16 @@ export const useProjectStore = create<StoreSlice>()(
         const id = uid('frm')
         set((state) => {
           const name = nextFormName(state.project)
-          state.project.forms.push({ ...DEFAULT_FORM, id, name, caption: name })
+          state.project.forms.push({
+            ...DEFAULT_FORM,
+            id,
+            name,
+            caption: name,
+            code: DEFAULT_FORM_CODE,
+          })
           state.project.selectedFormId = id
           state.project.selectedControlId = undefined
+          state.project.editorTarget = { kind: 'form', formId: id }
         })
         return id
       },
@@ -214,6 +255,75 @@ export const useProjectStore = create<StoreSlice>()(
           c.height = h
           c.left = clamp(Math.round(rect.left), 0, f.width - w)
           c.top = clamp(Math.round(rect.top), 0, f.height - h)
+        }),
+
+      setFormCode: (formId, code) =>
+        set((state) => {
+          const f = state.project.forms.find((x) => x.id === formId)
+          if (f) f.code = code
+        }),
+
+      insertFormCode: (formId, snippet) =>
+        set((state) => {
+          const f = state.project.forms.find((x) => x.id === formId)
+          if (!f) return
+          const existing = f.code ?? ''
+          if (existing.includes(snippet.trim())) return
+          const sep = existing.endsWith('\r\n\r\n') ? '' : existing.endsWith('\r\n') ? '\r\n' : '\r\n\r\n'
+          f.code = existing + sep + snippet
+        }),
+
+      addModule: (kind = 'standard', name) => {
+        const id = uid('mod')
+        set((state) => {
+          const prefix = kind === 'class' ? 'Class' : 'Module'
+          const mname = name ?? nextModuleName(state.project, prefix)
+          const mod: CodeModule = {
+            id,
+            name: mname,
+            kind,
+            code: 'Option Explicit\r\n\r\n',
+          }
+          state.project.modules.push(mod)
+          state.project.editorTarget = { kind: 'module', moduleId: id }
+          state.project.view = 'code'
+        })
+        return id
+      },
+
+      deleteModule: (id) =>
+        set((state) => {
+          state.project.modules = state.project.modules.filter((m) => m.id !== id)
+          if (
+            state.project.editorTarget?.kind === 'module' &&
+            state.project.editorTarget.moduleId === id
+          ) {
+            state.project.editorTarget = state.project.selectedFormId
+              ? { kind: 'form', formId: state.project.selectedFormId }
+              : undefined
+          }
+        }),
+
+      renameModule: (id, name) =>
+        set((state) => {
+          const m = state.project.modules.find((x) => x.id === id)
+          if (m) m.name = name
+        }),
+
+      setModuleCode: (id, code) =>
+        set((state) => {
+          const m = state.project.modules.find((x) => x.id === id)
+          if (m) m.code = code
+        }),
+
+      setView: (view) =>
+        set((state) => {
+          state.project.view = view
+        }),
+
+      setEditorTarget: (target) =>
+        set((state) => {
+          state.project.editorTarget = target
         }),
     })),
     {

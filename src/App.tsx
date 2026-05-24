@@ -12,6 +12,7 @@ import { ProjectTree } from './components/ProjectTree'
 import { Toolbox } from './components/Toolbox'
 import { Canvas } from './components/Canvas'
 import { PropertiesPanel } from './components/PropertiesPanel'
+import { CodeEditor } from './components/CodeEditor'
 import { useProjectStore, useTemporal } from './store/project'
 import { attachPersistence, loadPersistedProject } from './store/persistence'
 import type { ControlType } from './types/project'
@@ -25,6 +26,8 @@ function App() {
   const deleteControl = useProjectStore((s) => s.deleteControl)
   const selectedFormId = useProjectStore((s) => s.project.selectedFormId)
   const selectedControlId = useProjectStore((s) => s.project.selectedControlId)
+  const view = useProjectStore((s) => s.project.view ?? 'designer')
+  const setView = useProjectStore((s) => s.setView)
   const loadProject = useProjectStore((s) => s.loadProject)
   const undo = useTemporal((s) => s.undo)
   const redo = useTemporal((s) => s.redo)
@@ -61,6 +64,14 @@ function App() {
         target.isContentEditable
 
       const ctrl = e.ctrlKey || e.metaKey
+
+      // F7 / Shift+F7 view switching
+      if (e.key === 'F7') {
+        e.preventDefault()
+        setView(e.shiftKey ? 'designer' : 'code')
+        return
+      }
+
       if (ctrl && e.key.toLowerCase() === 'z' && !e.shiftKey) {
         e.preventDefault()
         undo()
@@ -72,6 +83,7 @@ function App() {
         e.preventDefault()
         redo()
       } else if (
+        view === 'designer' &&
         !isInput &&
         (e.key === 'Delete' || e.key === 'Backspace') &&
         selectedFormId &&
@@ -80,6 +92,7 @@ function App() {
         e.preventDefault()
         deleteControl(selectedFormId, selectedControlId)
       } else if (
+        view === 'designer' &&
         !isInput &&
         selectedFormId &&
         selectedControlId &&
@@ -96,7 +109,7 @@ function App() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [undo, redo, deleteControl, moveControl, selectedFormId, selectedControlId])
+  }, [undo, redo, deleteControl, moveControl, selectedFormId, selectedControlId, view, setView])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -130,14 +143,20 @@ function App() {
       <div className="flex h-screen flex-col bg-slate-50 text-slate-900">
         <Header />
         <main className="flex flex-1 overflow-hidden">
-          <aside className="flex w-60 flex-col gap-4 overflow-auto border-r border-slate-200 bg-white p-3">
-            <ProjectTree />
-            <Toolbox />
-          </aside>
-          <Canvas ref={canvasRef} />
-          <aside className="w-72 overflow-auto border-l border-slate-200 bg-white">
-            <PropertiesPanel />
-          </aside>
+          {view === 'designer' ? (
+            <>
+              <aside className="flex w-60 flex-col gap-4 overflow-auto border-r border-slate-200 bg-white p-3">
+                <ProjectTree />
+                <Toolbox />
+              </aside>
+              <Canvas ref={canvasRef} />
+              <aside className="w-72 overflow-auto border-l border-slate-200 bg-white">
+                <PropertiesPanel />
+              </aside>
+            </>
+          ) : (
+            <CodeEditor />
+          )}
         </main>
         <Footer />
       </div>

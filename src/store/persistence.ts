@@ -8,6 +8,16 @@ const STORAGE_KEY = 'vba-userform-builder/project/v1'
 export async function loadPersistedProject(): Promise<Project | undefined> {
   try {
     const raw = await idbGet<Project>(STORAGE_KEY)
+    if (!raw) return undefined
+    // Migration: ensure every form has a code field
+    raw.forms = (raw.forms ?? []).map((f) => ({
+      ...f,
+      code: typeof f.code === 'string' ? f.code : 'Option Explicit\r\n\r\n',
+    }))
+    if (!raw.view) raw.view = 'designer'
+    if (!raw.editorTarget && raw.selectedFormId) {
+      raw.editorTarget = { kind: 'form', formId: raw.selectedFormId }
+    }
     return raw
   } catch (e) {
     console.warn('Failed to load persisted project', e)
